@@ -1,0 +1,118 @@
+
+
+repo代理:
+
+curl "https://mirrors.tuna.tsinghua.edu.cn/git/git-repo" > ~/qh/repo && chmod a+x ~/qh/repo
+
+初始化
+~/qh/repo init -u git://git.freescale.com/imx/fsl-arm-yocto-bsp.git -b imx-3.14.28-1.0.0_ga --repo-url='https://mirrors.tuna.tsinghua.edu.cn/git/git-repo/'
+
+可以先加环境变量然后就不用每次命令都带上它了。
+export REPO_URL='https://mirrors.tuna.tsinghua.edu.cn/git/git-repo/' ~/qh/repo init -u git://git.freescale.com/imx/fsl-arm-yocto-bsp.git -b imx-3.14.28-1.0.0_ga
+
+
+环境搭建(根据 Freescale_Yocto_Project_User's_Guide.pdf):
+对于-3.14.28：
+
+pre()
+{
+        sudo apt-get install vim dos2unix tree ssh samba smbclient nfs-kernel-server nfs-common  tftpd-hpa tftp-hpa  apt-file -y
+        sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat libsdl1.2-dev xterm sed cvs subversion coreutils texi2html docbook-utils python-pysqlite2 help2man make gcc g++ desktop-file-utils libgl1-mesa-dev libglu1-mesa-dev mercurial autoconf automake groff curl lzop asciidoc u-boot-tools -y
+}
+
+init_repo()
+{
+        mkdir ~/bin 
+        curl "http://PHP.webtutor.pl/en/wp-content/uploads/2011/09/repo" > ~/bin/repo  && chmod a+x ~/bin/repo 
+        mkdir -p $HOME/fsl3-release-bsp   &&  cd $HOME/fsl3-release-bsp 
+        git config --global user.name "ocj"
+        git config --global user.email "oucaijun.happy@163.com"
+        git config --list
+        ~/bin/repo init -u git://git.freescale.com/imx/fsl-arm-yocto-bsp.git -b imx-3.14.28-1.0.0_ga
+        ~/bin/repo sync
+}
+
+mkimage()
+{
+cd $HOME/fsl-release-bsp 
+MACHINE=imx6qsabresd source fsl-setup-release.sh -b build-x11 -e x11
+bitbake  fsl-image-qt5 meta-toolchain-qt5
+bitbake fsl-image-qt5 -c populate_sdk
+bitbake fsl-image-mfgtool-initramfs
+       
+bitbake u-boot-imx linux-imx
+
+sh tmp/deploy/sdk/poky-glibc-x86_64-meta-toolchain-qt5-cortexa9hf-vfp-neon-toolchain-1.7.sh
+
+.  /opt/poky/1.7/environment-setup-cortexa9hf-vfp-neon-poky-linux-gnueabi
+}
+
+pre
+init_repo
+mkimage
+
+
+对于-4.1.15内核
+init_repo()
+{
+        mkdir ~/bin 
+        curl "http://PHP.webtutor.pl/en/wp-content/uploads/2011/09/repo" > ~/bin/repo  && chmod a+x ~/bin/repo 
+        mkdir -p $HOME/fsl4-release-bsp &&      cd $HOME/fsl4-release-bsp 
+        git config --global user.name "ocj"
+        git config --global user.email "oucaijun.happy@163.com"
+        git config --list
+        ~/bin/repo init -u git://git.freescale.com/imx/fsl-arm-yocto-bsp.git -b imx-4.1-krogoth -m imx-4.1.15-2.0.0.xml
+        ~/bin/repo sync
+}
+DISTRO=fsl-imx-x11 MACHINE=imx6qsabresd source fsl-setup-release.sh -b build-x11
+DISTRO=fsl-imx-x11 MACHINE=imx6solosabresd EULA=1 source fsl-setup-release.sh -b x11
+
+
+yocto平台选项：
+｛
+	Check either the release notes or the machine directory for the latest additions.
+	• imx6qpsabreauto
+	• imx6qpsabresd
+	• imx6ulevk
+	• imx6dlsabreauto
+	• imx6dlsabresd
+	• imx6qsabreauto
+	• imx6qsabresd
+	• imx6slevk
+	• imx6solosabreauto
+	• imx6solosabresd
+	• imx6sxsabresd
+	• imx6sxsabreauto
+	• imx7dsabresd
+
+	Each build must configure a distro configuration. The distro sets up the build environment. Each graphical backend Frame
+	Buffer, Wayland, Xwayland and X11 each have a distro configuration. If no DISTRO file is specified then the x11 distro is
+	setup as default. In past releases the fsl-setup-release script had a -e parameter for setting the backend. If this is used then the
+	corresponding distro file is specified. Distro configurations are saved in the local.conf in the DISTRO setting and will show
+	when the bitbake is running. In past releases we used the poky distro and customized versions and providers in our layer.conf
+	but a custom distro is a better solution. If the poky distro is used, the build configuration might pick up community kernel,
+	uboot and gstreamer solutions and not the supported i.MX components.
+	Here are the list of DISTRO configurations. Note that DirectFB is no longer supported.
+	• fsl-imx-x11 - Only X11 graphics
+	• fsl-imx-wayland - Wayland weston graphics
+	• fsl-imx-xwayland - Wayland graphics and X11. X11 applications using EGL not supported
+	• fsl-imx-fb - Frame Buffer graphics - no X11 or Wayland
+｝
+
+
+内核uboot编译
+build_kernel_uboot()
+{
+	#bitbake u-boot-imx  linux-imx -v -c cleanall
+	bitbake u-boot-imx  linux-imx
+
+	cd  $HOME/fsl-release-bsp/build/tmp/work/imx6qsabresd-poky-linux-gnueabi/linux-imx/3.14.28-r0/git
+	make imx_v7_defconfig
+	make zImage -j32
+
+	cd  $HOME/fsl-release-bsp/build/tmp/work/imx6qsabresd-poky-linux-gnueabi/u-boot-imx/2014.04-r0/git
+	make mx6solosabresd_config 
+	make
+}
+
+
